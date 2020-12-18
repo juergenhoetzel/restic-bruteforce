@@ -1,0 +1,60 @@
+#+title: A naive restic brute force tool implemented in C
+
+Of course, it would have been much easier to implement this in =go= using [[https://github.com/restic/restic][restic]] code.
+
+I just wanted to refresh my =C=-knowledge and learn something about the internals of [[https://github.com/restic/restic][restic]] and the API of [[https://github.com/openssl/openssl][OpenSSL]].
+
+* Usage
+
+Get crypto parameters from restic-repo:
+
+#+begin_src bash
+$ jq <keys/bb4d5f30181bf3d2350a8145aba10ac7b2ad595b3ce9c7e32c263a0194ba95e3
+#+end_src
+
+#+begin_src javascript
+{
+  "created": "2020-12-18T16:21:46.888133781Z",
+  "username": "alarm",
+  "hostname": "alarm",
+  "kdf": "scrypt",
+  "N": 8192,
+  "r": 8,
+  "p": 1,
+  "salt": "7SmtZZSHl6J18Vsdo2/dKwJHp3ctaez98hFB2Df7B4C2+0jPfMw+QUahBd7g30hRJW4gRnHZfHGMfmtKeoz7dQ==",
+  "data": "h5rMFX2qATIY/Mz2tgviDx5SuqiTaYpYnwJhZfUbux2gOwpdtCiF2Lz/s0AwsLsmcW6ffJUMzLZ0SU1j0QTuiAjnE6fUg6ag7zaxSqrGUuqjqSsS+dekz+rXLtCiFsyusN35xulKqEyCWQrppv/BtItPuhY2Nf+04GM95miCflZ+jINFOa4Y11C+b4+G8SEBsEq5JvpXADjrb3jvYCHBsQ=="
+}
+#+end_src
+
+Start cracking using above parameters:
+
+#+begin_src bash
+time ./build/restic-brute -v -n 8192 -r 8 -p 1 7SmtZZSHl6J18Vsdo2/dKwJHp3ctaez98hFB2Df7B4C2+0jPfMw+QUahBd7g30hRJW4gRnHZfHGMfmtKeoz7dQ== h5rMFX2qATIY/Mz2tgviDx5SuqiTaYpYnwJhZfUbux2gOwpdtCiF2Lz/s0AwsLsmcW6ffJUMzLZ0SU1j0QTuiAjnE6fUg6ag7zaxSqrGUuqjqSsS+dekz+rXLtCiFsyusN35xulKqEyCWQrppv/BtItPuhY2Nf+04GM95miCflZ+jINFOa4Y11C+b4+G8SEBsEq5JvpXADjrb3jvYCHBsQ== </usr/share/dict/cracklib-small 
+#+end_src
+
+#+begin_example
+Using parameters (N=8192, r=8, p=1) on 8 Threads
+Checked 558 passwords
+Checked 1111 passwords
+Checked 1661 passwords
+Checked 2209 passwords
+Checked 2746 passwords
+Checked 3291 passwords
+Checked 3838 passwords
+Checked 4384 passwords
+Checked 4921 passwords
+Checked 5465 passwords
+Checked 5994 passwords
+Checked 6529 passwords
+Checked 7061 passwords
+...
+Checked 35028 passwords
+Checked 35560 passwords
+Found: penance
+
+real	3m5,189s
+user	23m45,713s
+sys	0m0,987s
+#+end_example
+
+
