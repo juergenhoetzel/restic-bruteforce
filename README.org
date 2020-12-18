@@ -2,7 +2,7 @@
 
 Of course, it would have been much easier to implement this in =go= using [[https://github.com/restic/restic][restic]] code.
 
-I just wanted to refresh my =C=-knowledge and learn something about the internals of [[https://github.com/restic/restic][restic]] and the API of [[https://github.com/openssl/openssl][OpenSSL]].
+I just wanted to refresh my =C= knowledge and learn something about the internals of [[https://github.com/restic/restic][restic]] and the API of [[https://github.com/openssl/openssl][OpenSSL]].
 
 * Usage
 
