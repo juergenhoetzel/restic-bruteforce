@@ -1,3 +1,4 @@
+#define _GNU_SOURCE /* pthread_timedjoin_np */
 #include "util.h"
 #include <assert.h>
 #include <stdio.h>
@@ -15,7 +16,6 @@ typedef struct {
   int data_length;
   pthread_mutex_t get_work_lock;
   int count;
-  clock_t clock;
 } work;
 
 int valid(EVP_PKEY_CTX *pctx, work *work, char *password) {
@@ -52,13 +52,6 @@ void *do_work(void *arg) {
   do {
     pthread_mutex_lock(&w->get_work_lock);
     n = getline(&password, &n, stdin);
-    if (w->clock) {
-      clock_t elapsed = (clock() - w->clock) / CLOCKS_PER_SEC;
-      if (elapsed > 20) {
-        printf("Checked %d passwords\n", w->count);
-        w->clock = clock();
-      }
-    }
     w->count++;
     pthread_mutex_unlock(&w->get_work_lock);
     if (n == -1)
@@ -143,8 +136,7 @@ int main(int argc, char *argv[]) {
             .data = data,
             .data_length = data_length,
             .get_work_lock = PTHREAD_MUTEX_INITIALIZER,
-            .count = 0,
-            .clock = verbose ? clock() : 0};
+            .count = 0};
 
   int n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
   printf("Using parameters (N=%d, r=%d, p=%d) on %d Threads\n", w.N, w.r, w.p, n_cpus);
@@ -152,8 +144,20 @@ int main(int argc, char *argv[]) {
   int result;
   for (int i = 0; i < n_cpus; i++)
     pthread_create(workers + i, NULL, do_work, &w);
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  ts.tv_sec += 5;
+  int i = i;
   for (int i = 0; i < n_cpus; i++) {
-    pthread_join(workers[i], (void *)&result);
+    while (pthread_timedjoin_np(workers[i], (void *)&result, &ts) == ETIMEDOUT) {
+      if (verbose) {
+        pthread_mutex_lock(&w.get_work_lock);
+        printf("Checked %d passwords\n", w.count);
+        pthread_mutex_unlock(&w.get_work_lock);
+      }
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ts.tv_sec += 5;
+    }
   }
   /* if we reach this: No password was found */
   fprintf(stderr, "unlucky\n");
