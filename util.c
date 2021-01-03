@@ -56,15 +56,17 @@ char *base64_encode(const char *in, int len) {
   return strndup(bufferPtr->data, bufferPtr->length);
 }
 
+static unsigned char poly1305_key_mask[16] __attribute__((aligned(8))) = {
+    0xff, 0xff, 0xff, 0x0f, 0xfc, 0xff, 0xff, 0x0f, 0xfc, 0xff, 0xff, 0x0f, 0xfc, 0xff, 0xff, 0x0f};
+
 void poly1305_preparekey(unsigned char *nonce, unsigned char *key, unsigned char *prepared_key) {
-  unsigned char key_mask[16] = {0xff, 0xff, 0xff, 0x0f, 0xfc, 0xff, 0xff, 0x0f,
-                                0xfc, 0xff, 0xff, 0x0f, 0xfc, 0xff, 0xff, 0x0f};
+
   /* mask key */
-  unsigned char masked_key[32];
+  unsigned char masked_key[32] __attribute__((aligned(8)));
   memcpy(masked_key, key, 32);
-  for (int i = 0; i < 16; i++) {
-    masked_key[i + 16] &= key_mask[i];
-  }
+
+  ((uint64_t *)masked_key)[2] &= ((uint64_t *)poly1305_key_mask)[0];
+  ((uint64_t *)masked_key)[3] &= ((uint64_t *)poly1305_key_mask)[1];
   /* FIXME Use k as aes key */
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   assert(ctx);
