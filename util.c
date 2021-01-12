@@ -1,6 +1,8 @@
 #include <assert.h>
+#include <stdint.h>
 #include <string.h>
 
+#include "config.h"
 #include "util.h"
 #include <openssl/evp.h>
 /* FIXME: use meson to setup */
@@ -56,25 +58,27 @@ char *base64_encode(const char *in, int len) {
   return strndup(bufferPtr->data, bufferPtr->length);
 }
 
-static unsigned char poly1305_key_mask[16] __attribute__((aligned(8))) = {
-    0xff, 0xff, 0xff, 0x0f, 0xfc, 0xff, 0xff, 0x0f, 0xfc, 0xff, 0xff, 0x0f, 0xfc, 0xff, 0xff, 0x0f};
+#if BIGENDIAN
+static uint64_t poly1305_key_mask[2] = {UINT64_C(0xffffff0ffcffff0f), UINT64_C(0xfcffff0ffcffff0f)};
+#else
+static uint64_t poly1305_key_mask[2] = {UINT64_C(0x0ffffffc0fffffff), UINT64_C(0x0ffffffc0ffffffc)};
+#endif
 
 void poly1305_preparekey(unsigned char *nonce, unsigned char *key, unsigned char *prepared_key) {
 
   /* mask key */
-  unsigned char masked_key[32] __attribute__((aligned(8)));
+  uint64_t masked_key[4];
   memcpy(masked_key, key, 32);
-
-  ((uint64_t *)masked_key)[2] &= ((uint64_t *)poly1305_key_mask)[0];
-  ((uint64_t *)masked_key)[3] &= ((uint64_t *)poly1305_key_mask)[1];
+  masked_key[2] &= poly1305_key_mask[0];
+  masked_key[3] &= poly1305_key_mask[1];
   /* FIXME Use k as aes key */
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   assert(ctx);
-  assert(EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, masked_key, NULL) == 1);
+  assert(EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, (unsigned char *)masked_key, NULL) == 1);
   int out_len;
   assert(1 == EVP_EncryptUpdate(ctx, prepared_key + 16, &out_len, nonce, 16));
   assert(out_len == 16);
-  memcpy(prepared_key, masked_key + 16, 16);
+  memcpy(prepared_key, masked_key + 2, 16);
 }
 
 /* key = k | r (32 bytes)*/
